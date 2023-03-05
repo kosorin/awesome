@@ -149,6 +149,8 @@ local function apply_areasnap(c, args)
     return build_placement(current_snap, current_axis)(c,{
         to_percent     = 0.5,
         honor_workarea = true,
+        store_geometry = true,
+        context        = "snap",
         honor_padding  = true,
         margins        = beautiful.snapper_gap
     })
@@ -264,8 +266,20 @@ function module.snap(c, snap, x, y, fixed_x, fixed_y)
     return geom
 end
 
+-- Restore client size
+-- resize.add_enter_callback(function(c, _, args)
+--     if module.edge_enabled == false then return end
+--     aplace.restore(c, { context="snap", clear_stored_geometry = true })
+--     return true
+-- end, "mouse.move")
+
 -- Enable edge snapping
 resize.add_move_callback(function(c, geo, args)
+
+    -- Restore size in the move callback for a "better" user experience
+    -- or use the enter callback above
+    aplace.restore(c, { context="snap", clear_stored_geometry = true })
+
     -- Screen edge snapping (areosnap)
     if (module.edge_enabled ~= false)
       and args and (args.snap == nil or args.snap) then
