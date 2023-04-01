@@ -81,6 +81,7 @@ local function do_redraw(self)
         if self._widget_hierarchy and self._widget then
             local had_systray = systray_widget and self._widget_hierarchy:get_count(systray_widget) > 0
 
+            context.hierarchy = nil
             self._widget_hierarchy:update(context,
                 self._widget, width, height, self._dirty_area)
 
@@ -92,6 +93,7 @@ local function do_redraw(self)
             self._need_complete_repaint = true
             if self._widget then
                 self._widget_hierarchy_callback_arg = {}
+                context.hierarchy = nil
                 self._widget_hierarchy = whierarchy.new(context, self._widget, width, height,
                         self._redraw_callback, self._layout_callback, self._widget_hierarchy_callback_arg)
             else
@@ -158,6 +160,7 @@ local function do_redraw(self)
     -- Draw the widget
     if self._widget_hierarchy then
         cr:set_source(self.foreground_color)
+        context.hierarchy = nil
         self._widget_hierarchy:draw(context, cr)
     end
 

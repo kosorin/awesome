@@ -139,9 +139,6 @@ function hierarchy_update(self, context, widget, width, height, region, matrix_t
             r = hierarchy_new(self._redraw_callback, self._layout_callback, self._callback_arg)
             r._parent = self
         end
-        if w._widget._style then
-            w._widget:set_parent_hierarchy(self, i)
-        end
         hierarchy_update(r, context, w._widget, w._width, w._height, region, w._matrix, w._matrix * matrix_to_device)
         table.insert(self._children, r)
     end
@@ -216,6 +213,9 @@ end
 -- @constructorfct wibox.hierarchy.new
 function hierarchy.new(context, widget, width, height, redraw_callback, layout_callback, callback_arg)
     local result = hierarchy_new(redraw_callback, layout_callback, callback_arg)
+    if not context.hierarchy then
+        context.hierarchy = result
+    end
     result:update(context, widget, width, height)
     return result
 end
@@ -231,6 +231,9 @@ end
 -- @method update
 function hierarchy:update(context, widget, width, height, region)
     region = region or cairo.Region.create()
+    if not context.hierarchy then
+        context.hierarchy = self
+    end
     hierarchy_update(self, context, widget, width, height, region, self._matrix, self._matrix_to_device)
     return region
 end
@@ -329,6 +332,14 @@ function hierarchy:draw(context, cr)
     local widget = self:get_widget()
     if not widget._private.visible then
         return
+    end
+
+    if not context.hierarchy then
+        context.hierarchy = self
+    end
+
+    if widget.request_style then
+        widget:request_style(true)
     end
 
     cr:save()
