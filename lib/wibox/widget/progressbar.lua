@@ -36,7 +36,7 @@
 ---------------------------------------------------------------------------
 
 local setmetatable = setmetatable
-local ipairs = ipairs
+local pairs, ipairs = pairs, ipairs
 local math = math
 local gdebug =  require("gears.debug")
 local base = require("wibox.widget.base")
@@ -44,8 +44,30 @@ local color = require("gears.color")
 local beautiful = require("beautiful")
 local shape = require("gears.shape")
 local gtable = require("gears.table")
+local noice = require("theme.manager")
+local stylable = require("theme.stylable")
+local Nil = require("theme.nil")
 
 local progressbar = { mt = {} }
+
+local properties = {
+    background_color = "#ff0000aa",
+    bar_border_color = Nil,
+    bar_border_width = 0,
+    bar_shape = Nil,
+    border_color = Nil,
+    border_width = 0,
+    clip = Nil,
+    color = "#ff0000",
+    margins = Nil,
+    paddings = Nil,
+    shape = shape.rectangle,
+    ticks = Nil,
+    ticks_gap = 1,
+    ticks_size = 4,
+}
+
+noice.register_type(progressbar, "progressbar", "widget", properties)
 
 --- The progressbar border color.
 --
@@ -338,17 +360,11 @@ local progressbar = { mt = {} }
 -- @see beautiful.progressbar_margins
 
 
-local properties = { "border_color", "color"     , "background_color",
-                     "value"       , "max_value" , "ticks",
-                     "ticks_gap"   , "ticks_size", "border_width",
-                     "shape"       , "bar_shape" , "bar_border_width",
-                     "clip"        , "margins"   , "bar_border_color",
-                     "paddings",
-                   }
-
 function progressbar.draw(pbar, _, cr, width, height)
-    local ticks_gap = pbar._private.ticks_gap or 1
-    local ticks_size = pbar._private.ticks_size or 4
+    local style = pbar._style.current
+
+    local ticks_gap = style.ticks_gap or 1
+    local ticks_size = style.ticks_size or 4
 
     -- We want one pixel wide lines
     cr:set_line_width(1)
@@ -360,22 +376,22 @@ function progressbar.draw(pbar, _, cr, width, height)
     if value >= 0 then
         value = value / max_value
     end
-    local border_width = pbar._private.border_width
+    local border_width = style.border_width
         or beautiful.progressbar_border_width or 0
 
-    local bcol = pbar._private.border_color or beautiful.progressbar_border_color
+    local bcol = style.border_color or beautiful.progressbar_border_color
 
     border_width = bcol and border_width or 0
 
-    local bg = pbar._private.background_color or
+    local bg = style.background_color or
         beautiful.progressbar_bg or "#ff0000aa"
 
     local bg_width, bg_height = width, height
 
-    local clip = pbar._private.clip ~= false and beautiful.progressbar_clip ~= false
+    local clip = style.clip ~= false and beautiful.progressbar_clip ~= false
 
     -- Apply the margins
-    local margin = pbar._private.margins or beautiful.progressbar_margins
+    local margin = style.margins or beautiful.progressbar_margins
 
     if margin then
         if type(margin) == "number" then
@@ -398,7 +414,7 @@ function progressbar.draw(pbar, _, cr, width, height)
         cr:set_line_width(border_width)
     end
 
-    local background_shape = pbar._private.shape or
+    local background_shape = style.shape or
         beautiful.progressbar_shape or shape.rectangle
 
     background_shape(cr, bg_width, bg_height)
@@ -443,7 +459,7 @@ function progressbar.draw(pbar, _, cr, width, height)
     end
 
     -- Apply the padding
-    local padding = pbar._private.paddings or beautiful.progressbar_paddings
+    local padding = style.paddings or beautiful.progressbar_paddings
 
     if padding then
         if type(padding) == "number" then
@@ -468,14 +484,14 @@ function progressbar.draw(pbar, _, cr, width, height)
 
     -- Draw the progressbar shape
 
-    local explicit_bar_shape = pbar._private.bar_shape or beautiful.progressbar_bar_shape
+    local explicit_bar_shape = style.bar_shape or beautiful.progressbar_bar_shape
     local bar_shape = explicit_bar_shape or shape.rectangle
 
-    local bar_border_width = pbar._private.bar_border_width or
-        beautiful.progressbar_bar_border_width or pbar._private.border_width or
+    local bar_border_width = style.bar_border_width or
+        beautiful.progressbar_bar_border_width or style.border_width or
         beautiful.progressbar_border_width or 0
 
-    local bar_border_color = pbar._private.bar_border_color or
+    local bar_border_color = style.bar_border_color or
         beautiful.progressbar_bar_border_color
 
     bar_border_width = bar_border_color and bar_border_width or 0
@@ -484,7 +500,7 @@ function progressbar.draw(pbar, _, cr, width, height)
     over_drawn_height = over_drawn_height - bar_border_width
     cr:translate(bar_border_width/2, bar_border_width/2)
 
-    if pbar._private.ticks and explicit_bar_shape then
+    if style.ticks and explicit_bar_shape then
         local tr_off = 0
 
         -- Make all the shape and fill later in case the `color` is a gradient.
@@ -503,13 +519,13 @@ function progressbar.draw(pbar, _, cr, width, height)
             cr:stroke_preserve()
         end
 
-        cr:set_source(color(pbar._private.color or beautiful.progressbar_fg or "#ff0000"))
+        cr:set_source(color(style.color or beautiful.progressbar_fg or "#ff0000"))
 
         cr:fill()
     else
         bar_shape(cr, rel_x, over_drawn_height)
 
-        cr:set_source(color(pbar._private.color or beautiful.progressbar_fg or "#ff0000"))
+        cr:set_source(color(style.color or beautiful.progressbar_fg or "#ff0000"))
 
         if bar_border_width > 0 then
             cr:fill_preserve()
@@ -523,7 +539,7 @@ function progressbar.draw(pbar, _, cr, width, height)
 
     -- Legacy "ticks" bars. It looks horrible, but to avoid breaking the
     -- behavior, so be it.
-    if pbar._private.ticks  and not explicit_bar_shape then
+    if style.ticks  and not explicit_bar_shape then
         for i=0, width / (ticks_size+ticks_gap)-border_width do
             local rel_offset = over_drawn_width / 1 - (ticks_size+ticks_gap) * i
 
@@ -534,7 +550,7 @@ function progressbar.draw(pbar, _, cr, width, height)
                                 over_drawn_height)
             end
         end
-        cr:set_source(color(pbar._private.background_color or "#000000aa"))
+        cr:set_source(color(style.background_color or "#000000aa"))
         cr:fill()
     end
 end
@@ -556,6 +572,10 @@ end
 -- @propemits true false
 -- @see max_value
 
+function progressbar:get_value()
+    return self._private.value
+end
+
 function progressbar:set_value(value)
     value = value or 0
 
@@ -563,6 +583,10 @@ function progressbar:set_value(value)
 
     self:emit_signal("widget::redraw_needed")
     return self
+end
+
+function progressbar:get_max_value()
+    return self._private.max_value
 end
 
 function progressbar:set_max_value(max_value)
@@ -599,18 +623,24 @@ function progressbar:set_width(width)
 end
 
 -- Build properties function
-for _, prop in ipairs(properties) do
+for prop in pairs(properties) do
     if not progressbar["set_" .. prop] then
-        progressbar["set_" .. prop] = function(pbar, value)
-            pbar._private[prop] = value
-            pbar:emit_signal("widget::redraw_needed")
-            pbar:emit_signal("property::"..prop, value)
-            return pbar
+        progressbar["set_" .. prop] = function(self, value, override)
+            if override ~= false then
+                self._style.override[prop] = true
+            end
+            if self._style.current[prop] == value then
+                return
+            end
+            self._style.current[prop] = value
+            self:emit_signal("widget::redraw_needed")
+            self:emit_signal("property::" .. prop, value)
+            return self
         end
     end
-    if not progressbar["get_"..prop] then
-        progressbar["get_" .. prop] = function(pbar)
-            return pbar._private[prop]
+    if not progressbar["get_" .. prop] then
+        progressbar["get_" .. prop] = function(self)
+            return self._style.current[prop]
         end
     end
 end
@@ -657,6 +687,7 @@ function progressbar.new(args)
     pbar._private.max_value = 1
 
     gtable.crush(pbar, progressbar, true)
+    stylable.initialize(pbar)
 
     return pbar
 end

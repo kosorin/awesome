@@ -17,8 +17,17 @@ local setmetatable = setmetatable
 local pairs = pairs
 local type = type
 local table = table
+local tmanager = require("theme.manager")
+local Nil = require("theme.nil")
 
 local base = {}
+
+tmanager.register_type(nil, "widget", nil, {
+    forced_width = Nil,
+    forced_height = Nil,
+    opacity = 1,
+    visible = true,
+})
 
 -- {{{ Properties available on all widgets
 

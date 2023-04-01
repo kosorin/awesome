@@ -18,8 +18,24 @@ local gtable = require("gears.table")
 local Pango = lgi.Pango
 local PangoCairo = lgi.PangoCairo
 local setmetatable = setmetatable
+local noice = require("theme.manager")
+local stylable = require("theme.stylable")
+local Nil = require("theme.nil")
 
 local textbox = { mt = {} }
+
+local properties = {
+    ellipsize = "end",
+    wrap = "word_char",
+    valign = "center",
+    halign = "left",
+    font = Nil,
+    line_spacing_factor = 1,
+    justify = false,
+    indent = 0,
+}
+
+noice.register_type(textbox, "textbox", "widget", properties)
 
 --- Set the DPI of a Pango layout
 local function setup_dpi(box, dpi)
@@ -508,6 +524,7 @@ local function new(text, ignore_markup)
     local ret = base.make_widget(nil, nil, {enable_properties = true})
 
     gtable.crush(ret, textbox, true)
+    stylable.initialize(ret)
 
     ret._private.dpi = -1
     ret._private.ctx = PangoCairo.font_map_get_default():create_context()
