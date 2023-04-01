@@ -299,6 +299,27 @@ function mouse.append_global_mousebindings(buttons)
     buttons.group = g
 end
 
+
+function mouse.append_mousegrabber_binding(button)
+    capi.root._append_mousegrabber_button(button)
+end
+
+function mouse.append_mousegrabber_bindings(buttons)
+    local g = buttons.group
+    buttons.group = nil
+
+    -- Avoid the boilerplate. If the user is adding multiple buttons at once, then
+    -- they are probably related.
+    if g then
+        for _, k in ipairs(buttons) do
+            k.group = g
+        end
+    end
+
+    capi.root._append_mousegrabber_buttons(buttons)
+    buttons.group = g
+end
+
 --- Remove a mousebinding from the global set.
 --
 -- @staticfct awful.mouse.remove_global_mousebinding
@@ -308,6 +329,10 @@ end
 
 function mouse.remove_global_mousebinding(button)
     capi.root._remove_button(button)
+end
+
+function mouse.remove_mousegrabber_binding(button)
+    capi.root._remove_mousegrabber_button(button)
 end
 
 local default_buttons = {}

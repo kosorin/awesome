@@ -9,7 +9,7 @@ local gtable = require("gears.table")
 local gtimer = require("gears.timer")
 local unpack = unpack or table.unpack -- luacheck: globals unpack (compatibility with Lua 5.1)
 
-for _, type_name in ipairs { "button", "key" } do
+for _, type_name in ipairs { "button", "mousegrabber_button", "key" } do
     local prop_name = type_name.."s"
 
     -- The largest amount of wall clock time when loading Awesome 3.4 rc.lua

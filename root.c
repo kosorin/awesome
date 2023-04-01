@@ -433,6 +433,36 @@ luaA_root_buttons(lua_State *L)
     return 1;
 }
 
+static int
+luaA_root_mousegrabber_buttons(lua_State *L)
+{
+    if(lua_gettop(L) == 1)
+    {
+        luaA_checktable(L, 1);
+
+        foreach(button, globalconf.mousegrabber_buttons)
+            luaA_object_unref(L, *button);
+
+        button_array_wipe(&globalconf.mousegrabber_buttons);
+        button_array_init(&globalconf.mousegrabber_buttons);
+
+        lua_pushnil(L);
+        while(lua_next(L, 1))
+            button_array_append(&globalconf.mousegrabber_buttons, luaA_object_ref(L, -1));
+
+        return 1;
+    }
+
+    lua_createtable(L, globalconf.mousegrabber_buttons.len, 0);
+    for(int i = 0; i < globalconf.mousegrabber_buttons.len; i++)
+    {
+        luaA_object_push(L, globalconf.mousegrabber_buttons.tab[i]);
+        lua_rawseti(L, -2, i + 1);
+    }
+
+    return 1;
+}
+
 /** Set the root cursor
  *
  * The possible values are:
@@ -642,6 +672,7 @@ luaA_root_newindex(lua_State *L)
 const struct luaL_Reg awesome_root_methods[] =
 {
     { "_buttons", luaA_root_buttons },
+    { "_mousegrabber_buttons", luaA_root_mousegrabber_buttons },
     { "_keys", luaA_root_keys },
     { "cursor", luaA_root_cursor },
     { "fake_input", luaA_root_fake_input },

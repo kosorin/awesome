@@ -93,6 +93,12 @@ gprop._legacy_accessors(capi.root, "buttons", "_buttons", false, function(new_bt
     ) or false
 end, true)
 
+gprop._legacy_accessors(capi.root, "mousegrabber_buttons", "_mousegrabber_buttons", false, function(new_btns)
+    return new_btns[1] and (
+        type(new_btns[1]) == "button" or new_btns[1]._is_capi_button
+    ) or false
+end, true)
+
 gprop._legacy_accessors(capi.root, "keys", "_keys", false, function(new_btns)
     return new_btns[1] and (
         type(new_btns[1]) == "key" or new_btns[1]._is_capi_button
