@@ -55,6 +55,7 @@ lua_class_t drawin_class;
  * @field ontop On top of other windows.
  * @field cursor The mouse cursor.
  * @field visible Visibility.
+ * @field ignore_mousegrabber Ignore mousegrabber.
  * @field opacity The opacity of the drawin, between 0 and 1.
  * @field type The window type (desktop, normal, dock, …).
  * @field x The x coordinates.
@@ -103,6 +104,10 @@ lua_class_t drawin_class;
 
 /**
  * @signal property::visible
+ */
+
+/**
+ * @signal property::ignore_mousegrabber
  */
 
 /**
@@ -411,6 +416,22 @@ drawin_set_visible(lua_State *L, int udx, bool v)
     }
 }
 
+/** TODO_ignore_mousegrabber
+ * \param L The Lua VM state.
+ * \param udx The drawin.
+ * \param v The grab value.
+ */
+static void
+drawin_set_ignore_mousegrabber(lua_State *L, int udx, bool g)
+{
+    drawin_t *drawin = luaA_checkudata(L, udx, &drawin_class);
+    if(g != drawin->ignore_mousegrabber)
+    {
+        drawin->ignore_mousegrabber = g;
+        luaA_object_emit_signal(L, udx, "property::ignore_mousegrabber", 0);
+    }
+}
+
 static drawin_t *
 drawin_allocator(lua_State *L)
 {
@@ -418,6 +439,7 @@ drawin_allocator(lua_State *L)
     drawin_t *w = drawin_new(L);
 
     w->visible = false;
+    w->ignore_mousegrabber = false;
 
     w->opacity = -1;
     w->cursor = a_strdup("left_ptr");
@@ -506,6 +528,7 @@ luaA_drawin_geometry(lua_State *L)
 LUA_OBJECT_EXPORT_PROPERTY(drawin, drawin_t, ontop, lua_pushboolean)
 LUA_OBJECT_EXPORT_PROPERTY(drawin, drawin_t, cursor, lua_pushstring)
 LUA_OBJECT_EXPORT_PROPERTY(drawin, drawin_t, visible, lua_pushboolean)
+LUA_OBJECT_EXPORT_PROPERTY(drawin, drawin_t, ignore_mousegrabber, lua_pushboolean)
 
 static int
 luaA_drawin_set_x(lua_State *L, drawin_t *drawin)
@@ -630,6 +653,18 @@ static int
 luaA_drawin_set_visible(lua_State *L, drawin_t *drawin)
 {
     drawin_set_visible(L, -3, luaA_checkboolean(L, -1));
+    return 0;
+}
+
+/** TODO_ignore_mousegrabber
+ * \param L The Lua VM state.
+ * \param drawin The drawin object.
+ * \return The number of elements pushed on stack.
+ */
+static int
+luaA_drawin_set_ignore_mousegrabber(lua_State *L, drawin_t *drawin)
+{
+    drawin_set_ignore_mousegrabber(L, -3, luaA_checkboolean(L, -1));
     return 0;
 }
 
@@ -793,6 +828,10 @@ drawin_class_setup(lua_State *L)
                             (lua_class_propfunc_t) luaA_drawin_set_visible,
                             (lua_class_propfunc_t) luaA_drawin_get_visible,
                             (lua_class_propfunc_t) luaA_drawin_set_visible);
+    luaA_class_add_property(&drawin_class, "ignore_mousegrabber",
+                            (lua_class_propfunc_t) luaA_drawin_set_ignore_mousegrabber,
+                            (lua_class_propfunc_t) luaA_drawin_get_ignore_mousegrabber,
+                            (lua_class_propfunc_t) luaA_drawin_set_ignore_mousegrabber);
     luaA_class_add_property(&drawin_class, "ontop",
                             (lua_class_propfunc_t) luaA_drawin_set_ontop,
                             (lua_class_propfunc_t) luaA_drawin_get_ontop,

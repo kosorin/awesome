@@ -112,28 +112,25 @@ DO_EVENT_HOOK_CALLBACK(keyb_t, key, XCB_KEY, key_array_t, event_key_match)
  * \param x The x coordinate.
  * \param y The y coordinate.
  * \param mask The mask buttons.
- * \return True if the event was handled.
  */
-static bool
+static void
 event_handle_mousegrabber(int x, int y, uint16_t mask)
 {
-    if(globalconf.mousegrabber != LUA_REFNIL)
+    if(globalconf.mousegrabber == LUA_REFNIL)
+        return;
+
+    lua_State *L = globalconf_get_lua_State();
+    mousegrabber_handleevent(L, x, y, mask);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, globalconf.mousegrabber);
+    if(!luaA_dofunction(L, 1, 1))
     {
-        lua_State *L = globalconf_get_lua_State();
-        mousegrabber_handleevent(L, x, y, mask);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, globalconf.mousegrabber);
-        if(!luaA_dofunction(L, 1, 1))
-        {
-            warn("Stopping mousegrabber.");
+        warn("Stopping mousegrabber.");
+        luaA_mousegrabber_stop(L);
+    } else {
+        if(!lua_isboolean(L, -1) || !lua_toboolean(L, -1))
             luaA_mousegrabber_stop(L);
-        } else {
-            if(!lua_isboolean(L, -1) || !lua_toboolean(L, -1))
-                luaA_mousegrabber_stop(L);
-            lua_pop(L, 1);  /* pop returned value */
-        }
-        return true;
+        lua_pop(L, 1);  /* pop returned value */
     }
-    return false;
 }
 
 /** Emit a button signal.
@@ -178,27 +175,14 @@ event_handle_button(xcb_button_press_event_t *ev)
 
     globalconf.timestamp = ev->time;
 
-    {
-        /* ev->state contains the state before the event. Compute the state
-         * after the event for the mousegrabber.
-         */
-        uint16_t state = ev->state, change = 1 << (ev->detail - 1 + 8);
-        if (XCB_EVENT_RESPONSE_TYPE(ev) == XCB_BUTTON_PRESS)
-            state |= change;
-        else
-            state &= ~change;
-        if(event_handle_mousegrabber(ev->root_x, ev->root_y, state))
-            return;
-    }
-
     /* ev->state is
      * button status (8 bits) + modifiers status (8 bits)
      * we don't care for button status that we get, especially on release, so
      * drop them */
     ev->state &= 0x00ff;
 
-    if((drawin = drawin_getbywin(ev->event))
-       || (drawin = drawin_getbywin(ev->child)))
+    if(((drawin = drawin_getbywin(ev->event)) || (drawin = drawin_getbywin(ev->child)))
+        && (globalconf.mousegrabber == LUA_REFNIL || drawin->ignore_mousegrabber))
     {
         /* If the drawin is child, then x,y are
          * relative to root window */
@@ -227,7 +211,8 @@ event_handle_button(xcb_button_press_event_t *ev)
                              XCB_ALLOW_ASYNC_POINTER,
                              ev->time);
     }
-    else if((c = client_getbyframewin(ev->event)) || (c = client_getbywin(ev->event)))
+    else if(globalconf.mousegrabber == LUA_REFNIL
+        && ((c = client_getbyframewin(ev->event)) || (c = client_getbywin(ev->event))))
     {
         /* For clicks inside of c->window, we get two events. Once because of a
          * passive grab on c->window and then again for c->frame_window.
@@ -269,12 +254,25 @@ event_handle_button(xcb_button_press_event_t *ev)
                          XCB_ALLOW_REPLAY_POINTER,
                          ev->time);
     }
-    else if(ev->child == XCB_NONE)
-        if(globalconf.screen->root == ev->event)
-        {
-            event_button_callback(ev, &globalconf.buttons, L, 0, 0, NULL);
-            return;
-        }
+    else if(globalconf.mousegrabber == LUA_REFNIL
+        && ev->child == XCB_NONE && globalconf.screen->root == ev->event)
+    {
+        event_button_callback(ev, &globalconf.buttons, L, 0, 0, NULL);
+    }
+    else if(globalconf.mousegrabber != LUA_REFNIL)
+    {
+        event_button_callback(ev, &globalconf.mousegrabber_buttons, L, 0, 0, NULL);
+
+        /* ev->state contains the state before the event. Compute the state
+         * after the event for the mousegrabber.
+         */
+        uint16_t state = ev->state, change = 1 << (ev->detail - 1 + 8);
+        if (XCB_EVENT_RESPONSE_TYPE(ev) == XCB_BUTTON_PRESS)
+            state |= change;
+        else
+            state &= ~change;
+        event_handle_mousegrabber(ev->root_x, ev->root_y, state);
+    }
 }
 
 static void
@@ -538,10 +536,7 @@ event_handle_motionnotify(xcb_motion_notify_event_t *ev)
 
     globalconf.timestamp = ev->time;
 
-    if(event_handle_mousegrabber(ev->root_x, ev->root_y, ev->state))
-        return;
-
-    if((c = client_getbyframewin(ev->event)))
+    if(globalconf.mousegrabber == LUA_REFNIL && (c = client_getbyframewin(ev->event)))
     {
         luaA_object_push(L, c);
         lua_pushinteger(L, ev->event_x);
@@ -563,7 +558,7 @@ event_handle_motionnotify(xcb_motion_notify_event_t *ev)
         lua_pop(L, 1);
     }
 
-    if((w = drawin_getbywin(ev->event)))
+    if((w = drawin_getbywin(ev->event)) && (globalconf.mousegrabber == LUA_REFNIL || w->ignore_mousegrabber))
     {
         luaA_object_push(L, w);
         luaA_object_push_item(L, -1, w->drawable);
@@ -573,6 +568,8 @@ event_handle_motionnotify(xcb_motion_notify_event_t *ev)
         luaA_object_emit_signal(L, -3, "mouse::move", 2);
         lua_pop(L, 2);
     }
+    else if(globalconf.mousegrabber != LUA_REFNIL)
+        event_handle_mousegrabber(ev->root_x, ev->root_y, ev->state);
 }
 
 /** The leave notify event handler.
@@ -653,13 +650,17 @@ event_handle_enternotify(xcb_enter_notify_event_t *ev)
      * "outside of the actual client window".
      */
 
-    if(ev->detail != XCB_NOTIFY_DETAIL_INFERIOR && (drawin = drawin_getbywin(ev->event)))
+    if(ev->detail != XCB_NOTIFY_DETAIL_INFERIOR && (drawin = drawin_getbywin(ev->event))
+        && (globalconf.mousegrabber == LUA_REFNIL || drawin->ignore_mousegrabber))
     {
         luaA_object_push(L, drawin);
         luaA_object_push_item(L, -1, drawin->drawable);
         event_drawable_under_mouse(L, -1);
         lua_pop(L, 2);
     }
+
+    if(globalconf.mousegrabber != LUA_REFNIL)
+        return;
 
     if((c = client_getbyframewin(ev->event)))
     {

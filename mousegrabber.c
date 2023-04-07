@@ -46,7 +46,7 @@ mousegrabber_grab(xcb_cursor_t cursor)
     {
         xcb_grab_pointer_reply_t *grab_ptr_r;
         xcb_grab_pointer_cookie_t grab_ptr_c =
-            xcb_grab_pointer_unchecked(globalconf.connection, false, root,
+            xcb_grab_pointer_unchecked(globalconf.connection, true, root,
                                        XCB_EVENT_MASK_BUTTON_PRESS
                                        | XCB_EVENT_MASK_BUTTON_RELEASE
                                        | XCB_EVENT_MASK_POINTER_MOTION,
@@ -120,7 +120,7 @@ luaA_mousegrabber_run(lua_State *L)
         luaA_unregister(L, &globalconf.mousegrabber);
         luaL_error(L, "unable to grab mouse pointer");
     }
-    
+
     return 0;
 }
 

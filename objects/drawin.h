@@ -34,6 +34,8 @@ struct drawin_t
     bool ontop;
     /** Visible */
     bool visible;
+    /** Ignore mousegrabber */
+    bool ignore_mousegrabber;
     /** Cursor */
     char *cursor;
     /** The drawable for this drawin. */
